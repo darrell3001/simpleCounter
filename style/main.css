@@ -1,0 +1,25 @@
+body {
+}
+
+.container {
+}
+
+label {
+}
+
+input {
+}
+buttonx {
+}
+
+#status1 {
+}
+
+#refresh {
+    visibility: visible;
+}
+
+#counter-value {
+    color: red;
+    font-size: 35px;
+}
