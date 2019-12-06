@@ -7,11 +7,13 @@
 function initContract() {
   contract = new web3.eth.Contract(abi, address);
 
-  $("#errormsg").html("subscription");
+  $("#popCount").html("0");
+  $("#notificationMechanism").html("async");
+
   contract.events.counterUpdated((error, event) => {
     if (!error) {
-      var curr = parseInt($("#asyncpop").html());
-      $("#asyncpop").html(curr + 1);
+      var curr = parseInt($("#popCount").html());
+      $("#popCount").html(curr + 1);
       $("#counter-value").html(event.returnValues.newCounterValue);
     } else {
       if (
@@ -19,11 +21,12 @@ function initContract() {
           "The current provider doesn't support subscriptions"
         )
       ) {
-        $("#errormsg").html("timer pop");
+        $("#notificationMechanism").html("timer");
         setInterval(() => {
           timerPop();
         }, 5000);
       } else {
+        $("#notificationMechanism").html("unsupported");
         $("#errormsg").html(error.message);
       }
     }
@@ -34,23 +37,31 @@ function initContract() {
 // Note this is done with an async callback thus the routine finishes immediatly
 // and the value is updated via jQuery via promise
 function getValue() {
-  contract.methods
-    .getCounter()
-    .call()
-    .then(result => {
-      $("#counter-value").html(result);
-    });
+  try {
+    contract.methods
+      .getCounter()
+      .call()
+      .then(result => {
+        $("#counter-value").html(result);
+      });
+  } catch (error) {
+    $("#errormsg").html(error.message);
+  }
 }
 
 // This is the aforementioned timepop that is called as a promise for the async
 // timer pop.
 // Note: this mechanism is ONLY used when subscriptions are found to not be supported
 function timerPop() {
-  var curr = parseInt($("#timerpop").html());
-  $("#timerpop").html(curr + 1);
+  try {
+    var curr = parseInt($("#popCount").html());
+    $("#popCount").html(curr + 1);
 
-  if ($("#status").html() !== "waiting for confirmation") {
-    getValue();
+    if ($("#status").html() !== "waiting for confirmation") {
+      getValue();
+    }
+  } catch (error) {
+    $("#errormsg").html(error.message);
   }
 }
 
@@ -73,6 +84,20 @@ var abi = [
     type: "function"
   },
   {
+    constant: true,
+    inputs: [],
+    name: "getCounter",
+    outputs: [
+      {
+        name: "",
+        type: "int256"
+      }
+    ],
+    payable: false,
+    stateMutability: "view",
+    type: "function"
+  },
+  {
     constant: false,
     inputs: [],
     name: "increment",
@@ -91,12 +116,7 @@ var abi = [
     type: "function"
   },
   {
-    inputs: [
-      {
-        name: "_lockDurationMinutes",
-        type: "uint256"
-      }
-    ],
+    inputs: [],
     payable: false,
     stateMutability: "nonpayable",
     type: "constructor"
@@ -112,62 +132,6 @@ var abi = [
     ],
     name: "counterUpdated",
     type: "event"
-  },
-  {
-    constant: true,
-    inputs: [],
-    name: "getCounter",
-    outputs: [
-      {
-        name: "",
-        type: "int256"
-      }
-    ],
-    payable: false,
-    stateMutability: "view",
-    type: "function"
-  },
-  {
-    constant: true,
-    inputs: [],
-    name: "getTimeNow",
-    outputs: [
-      {
-        name: "",
-        type: "uint256"
-      }
-    ],
-    payable: false,
-    stateMutability: "view",
-    type: "function"
-  },
-  {
-    constant: true,
-    inputs: [],
-    name: "lockDurationMinutes",
-    outputs: [
-      {
-        name: "",
-        type: "uint256"
-      }
-    ],
-    payable: false,
-    stateMutability: "view",
-    type: "function"
-  },
-  {
-    constant: true,
-    inputs: [],
-    name: "lockedUntilTime",
-    outputs: [
-      {
-        name: "",
-        type: "uint256"
-      }
-    ],
-    payable: false,
-    stateMutability: "view",
-    type: "function"
   }
 ];
 
@@ -201,29 +165,6 @@ window.addEventListener("load", async () => {
       $("#errormsg").html("User did not give permission to use wallet");
     }
   }
-  // Legacy dapp browsers...
-  // Maybe older version of Metamask
-  else {
-    if (window.web3) {
-      // Acccounts always exposed
-      window.web3 = new Web3(web3.currentProvider);
-      console.log("Using legacy access to wallet");
-      $("#errormsg").html(
-        "Legacy version of digital wallet detected. Please consider upgradging to a more recent version of Metamask"
-      );
-      initContract();
-      getValue();
-    }
-    // Non-dapp browsers...
-    else {
-      console.log(
-        "Non-Ethereum browser detected. You should consider trying MetaMask!"
-      );
-      $("#errormsg").html(
-        "Non-Ethereum browser detected. You should consider trying MetaMask!"
-      );
-    }
-  }
 });
 
 // Basically all three buttons follow the same logic
@@ -250,7 +191,6 @@ $("#increment").click(() => {
     .on("confirmation", () => {
       $("#status").html("idle");
       $("#last-transaction-status").html("last transaction was successful");
-      getValue();
     }) // end of on confirmation
     .on("error", err => {
       $("#status").html("idle");
@@ -270,7 +210,6 @@ $("#decrement").click(() => {
     .on("confirmation", () => {
       $("#status").html("idle");
       $("#last-transaction-status").html("last transaction was successful");
-      getValue();
     }) // end of on confirmation
     .on("error", err => {
       $("#status").html("idle");
@@ -290,7 +229,6 @@ $("#reset").click(() => {
     .on("confirmation", () => {
       $("#status").html("idle");
       $("#last-transaction-status").html("last transaction was successful");
-      getValue();
     }) // end of on confirmation
     .on("error", err => {
       $("#status").html("idle");
